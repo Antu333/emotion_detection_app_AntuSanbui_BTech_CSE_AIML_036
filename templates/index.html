@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial Emotion Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            color: #333;
+            margin: 20px 0;
+        }
+        #controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #ddd;
+        }
+        #video-feed {
+            display: block;
+            margin: 20px auto;
+            max-width: 90%;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Facial Emotion Detection</h1>
+    <div id="controls">
+        <button onclick="refreshPage()">Refresh</button>
+        <button onclick="captureImage()">Capture Image</button>
+    </div>
+    <div>
+        <img id="video-feed" src="/video_feed" alt="Camera Feed">
+    </div>
+    <script>
+        function refreshPage() {
+            location.reload(); // Reloads the website
+        }
+
+        function captureImage() {
+            fetch('/capture', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => alert(`Captured Emotion: ${data.emotion}`))
+                .catch(err => console.error("Error:", err));
+        }
+    </script>
+</body>
+</html>
