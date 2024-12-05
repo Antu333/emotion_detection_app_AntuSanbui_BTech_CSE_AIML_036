@@ -9,40 +9,34 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropou
 from tensorflow.keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 
-# Initialize Flask app
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Ensure uploads folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Define paths
 model_path = os.path.join(os.path.dirname(__file__), 'fer_model.h5')
 dataset_path = os.path.join(os.path.dirname(__file__), 'dataset', 'fer2013.csv')
 csv_path = os.path.join(app.config['UPLOAD_FOLDER'], 'captured_emotions.csv')
 
-# Emotion labels
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 csv_path = "C:\\Users\\Antu Sanbui\\Desktop\\project\\emotion detection app\\dataset\\fer2013.csv"
-# Load FER2013 data
+
 def load_fer2013_data(csv_path):
-    print("Loading and preprocessing dataset...")
+    print("Loading and preprocessing dataset")
     data = pd.read_csv(csv_path)
     pixels = data['pixels'].tolist()
     emotions = data['emotion'].values
     images = np.array([np.fromstring(pixel, sep=' ') for pixel in pixels], dtype=np.float32)
-    images = images.reshape(-1, 48, 48, 1) / 255.0  # Normalize pixel values
-    labels = to_categorical(emotions, num_classes=7)  # One-hot encode labels
+    images = images.reshape(-1, 48, 48, 1) / 255.0  
+    labels = to_categorical(emotions, num_classes=7)  
     return images, labels
 
-# Train the FER model
 def train_fer_model():
     print("Training the model...")
     images, labels = load_fer2013_data(dataset_path)
     X_train, X_val, y_train, y_val = train_test_split(images, labels, test_size=0.2, random_state=42)
 
-    # Build the model
     model = Sequential([
         Conv2D(32, (3, 3), activation='relu', input_shape=(48, 48, 1)),
         MaxPooling2D((2, 2)),
@@ -51,7 +45,7 @@ def train_fer_model():
         Flatten(),
         Dense(128, activation='relu'),
         Dropout(0.5),
-        Dense(7, activation='softmax')  # 7 emotions
+        Dense(7, activation='softmax')  
     ])
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
@@ -60,27 +54,23 @@ def train_fer_model():
     print(f"Model trained and saved as {model_path}")
     return model
 
-# Check if model exists, if not train a new one
 if not os.path.exists(model_path):
     model = train_fer_model()
 else:
     model = tf.keras.models.load_model(model_path)
     print(f"Model loaded from {model_path}")
 
-# Route for Home Page
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Function for Real-Time Emotion Prediction
 def generate_frames():
-    cap = cv2.VideoCapture(0)  # Open webcam
+    cap = cv2.VideoCapture(0)  
     while True:
         success, frame = cap.read()
         if not success:
             break
         else:
-            # Convert to grayscale for FER
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5)
@@ -90,15 +80,12 @@ def generate_frames():
                 face = cv2.resize(face, (48, 48)) / 255.0
                 face = np.expand_dims(face, axis=0).reshape(1, 48, 48, 1)
 
-                # Predict emotion
                 predictions = model.predict(face)
                 emotion = emotion_labels[np.argmax(predictions)]
 
-                # Draw rectangle and label
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 cv2.putText(frame, emotion, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-            # Encode the frame
             ret, buffer = cv2.imencode('.jpg', frame)
             frame = buffer.tobytes()
             yield (b'--frame\r\n'
@@ -106,26 +93,20 @@ def generate_frames():
 
     cap.release()
 
-# Route for Real-Time Emotion Detection
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# Route for Image Capture
 @app.route('/capture', methods=['POST'])
 def capture():
-    cap = cv2.VideoCapture(0)  # Open webcam
+    cap = cv2.VideoCapture(0)  
     ret, frame = cap.read()
     if ret:
-        # Save the frame
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'captured_image.jpg')
         cv2.imwrite(file_path, frame)
-
-        # Predict emotion for the captured frame
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5)
-
         emotion = "No Face Detected"
         if len(faces) > 0:
             for (x, y, w, h) in faces:
@@ -135,7 +116,6 @@ def capture():
                 predictions = model.predict(face)
                 emotion = emotion_labels[np.argmax(predictions)]
 
-        # Save to CSV
         data = {'Image': [file_path], 'Emotion': [emotion]}
         df = pd.DataFrame(data)
         if os.path.exists(csv_path):
